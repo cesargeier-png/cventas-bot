@@ -5,6 +5,11 @@ app.use(express.static('.'));
 
 const VERIFY_TOKEN = 'cventas2024';
 
+app.get('/robots.txt', function(req, res) {
+  res.type('text/plain');
+  res.send('User-agent: facebookexternalhit\nAllow: /\n\nUser-agent: *\nAllow: /');
+});
+
 app.get('/', function(req, res) {
   res.send('<!DOCTYPE html><html><head><meta name="facebook-domain-verification" content="opoc76nzl70bblpisnlvr50gwqsaav" /><title>CVENTAS Bot</title></head><body>CVENTAS Bot activo</body></html>');
 });
