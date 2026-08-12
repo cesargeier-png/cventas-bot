@@ -61,7 +61,7 @@ let texto = `*${producto.nombre}*\n\n`;
     (producto.caracteristicas || []).forEach(function(c) {
         texto += `• ${c}\n`;
     });
-    texto += `\n💰 Precio contado: ${producto.precio_contado}\n\n`;
+    texto += `\n✨💰 *Precio contado: ${producto.precio_contado}* 💰✨\n\n`;
     texto += `💳 Financiación:\n`;
     (producto.financiacion || []).forEach(function(f) {
         texto += `• ${f}\n`;
