@@ -15,6 +15,7 @@ const PHONE_NUMBER_ID = '1257920514073124';
 
 const INSTAGRAM_LINK = 'https://instagram.com/c_ventasoficial';
 const FACEBOOK_LINK = 'https://www.facebook.com/profile.php?id=61579064025433';
+const GRUPO_OFERTAS_LINK = 'https://chat.whatsapp.com/GJElljYLMF14ww8FAxKpbY';
 const NUMERO_CIERRE_VENTA = '543624856124';
 
 const firebaseConfig = {
@@ -72,21 +73,29 @@ let texto = `*${producto.nombre}*\n\n`;
 }
 
 function armarNovedades() {
-    let texto = `Seguinos en nuestras redes y enterate primero de nuestras ofertas 👇\n\n`;
+    let texto = `Somos *C-VENTAS* 👋\n`;
+    texto += `Más de 10 años en tecnología —comunicación, informática, audio, consolas de juegos, entre otros— trabajando como mayoristas. Ese historial nos avala para arrancar ahora la venta al público.\n\n`;
+    texto += `✅ Compra 100% segura:\n`;
+    texto += `🔒 Cobro a través del portal Unicobros (Nuevo Banco del Chaco)\n`;
+    texto += `🤝 Canal directo, sin intermediarios\n`;
+    texto += `🏬 Coordinamos entrega en showroom\n`;
+    texto += `🚚 También hacemos envíos\n`;
+    texto += `📄 Cada venta emite su comprobante y garantía escrita\n\n`;
     texto += `📸 Instagram: ${INSTAGRAM_LINK}\n`;
     texto += `📘 Facebook: ${FACEBOOK_LINK}\n`;
+    texto += `💬 Grupo de ofertas: ${GRUPO_OFERTAS_LINK}\n`;
     texto += `\n🔙 Escribí "volver" para ver los productos`;
     return texto;
 }
 
 function armarMenu(productos) {
     let texto = `¡Hola! 👋 Bienvenido a *C-Ventas* 📲\nSoy Bencho, tu asistente designado.\n\n`;
-    texto += `Estos son los productos disponibles esta semana:\n\n`;
+    texto += `OFERTAS DISPONIBLES, CONOCÉ LA FINANCIACIÓN\n\n`;
     productos.forEach(function(p, i) {
-        texto += `${i + 1}) ${p.nombre}\n`;
+        texto += `👉 *${i + 1}* ${p.nombre}\n\n`;
     });
-    texto += `${productos.length + 1}) 📢 Novedades — seguinos en nuestras redes\n`;
-    texto += `\nRespondé con el número del que te interesa y te paso todos los detalles.`;
+    texto += `Indicá el número de la oferta a financiar\n`;
+    texto += `\n— — —\n📢 Conocé más sobre nosotros — escribí "novedades"`;
     return texto;
 }
 
@@ -199,20 +208,14 @@ app.post('/webhook', function(req, res) {
                          return;
                      }
 
-                     const totalOpciones = catalogo.length + 1;
                      const esVolver = textoNormalizado === 'volver';
                      const esNumero = !esVolver && /^\d+$/.test(textoNormalizado);
+                     // "novedades" ahora es palabra clave (antes era la última opción numerada del menú).
+                     const esNovedades = !esVolver && textoNormalizado === 'novedades';
                      const estadoPrevio = (esNumero && !esVolver) ? await leerEstadoMenu(numeroCliente) : null;
 
                      if (esNumero && estadoPrevio && estadoPrevio.menu_ids) {
                          const idx = parseInt(textoNormalizado, 10);
-
-                     if (idx === totalOpciones) {
-                         enviarMensaje(numeroCliente, armarNovedades());
-                         registrarInteresado(numeroCliente, textoRecibido, 'Novedades');
-                         res.sendStatus(200);
-                         return;
-                     }
 
                      const idElegido = estadoPrevio.menu_ids[idx - 1];
                          const productoElegido = idElegido ? catalogo.find(p => p.id === idElegido) : null;
@@ -223,6 +226,13 @@ app.post('/webhook', function(req, res) {
                          res.sendStatus(200);
                          return;
                      }
+                     }
+
+                     if (esNovedades) {
+                         enviarMensaje(numeroCliente, armarNovedades());
+                         registrarInteresado(numeroCliente, textoRecibido, 'Novedades');
+                         res.sendStatus(200);
+                         return;
                      }
 
                      enviarMensaje(numeroCliente, armarMenu(catalogo));
