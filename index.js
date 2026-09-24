@@ -310,16 +310,23 @@ app.post('/webhook', function(req, res) {
           // si vuelve a llegar, se corta sin volver a contestar. Aplica a minorista y mayorista por
           // igual. Directiva de Cesar, 23/09/2026.
           if (mensaje.id) {
-            const yaProcesadoRef = doc(db, 'bot_mensajes_procesados', mensaje.id);
-            const yaProcesadoSnap = await getDoc(yaProcesadoRef);
-            if (yaProcesadoSnap.exists()) {
-              console.log('Mensaje ' + mensaje.id + ' ya procesado, se ignora el reenvio de WhatsApp.');
-              res.sendStatus(200);
-              return;
+            try {
+              const yaProcesadoRef = doc(db, 'bot_mensajes_procesados', mensaje.id);
+              const yaProcesadoSnap = await getDoc(yaProcesadoRef);
+              if (yaProcesadoSnap.exists()) {
+                console.log('Mensaje ' + mensaje.id + ' ya procesado, se ignora el reenvio de WhatsApp.');
+                res.sendStatus(200);
+                return;
+              }
+              // Se marca ANTES de procesar, para cubrir el caso de que llegue un reenvio mientras
+              // todavia se esta armando la respuesta del primero.
+              await setDoc(yaProcesadoRef, { fecha: serverTimestamp() });
+            } catch (dedupErr) {
+              // Si Firestore rechaza el acceso a esta coleccion (reglas de seguridad pendientes de
+              // habilitar), no debe cortar la respuesta al cliente: se loguea y se sigue de largo
+              // sin proteccion de duplicados hasta que se habilite el permiso.
+              console.log('No se pudo verificar/registrar dedup de mensaje ' + mensaje.id + ': ' + dedupErr.message);
             }
-            // Se marca ANTES de procesar, para cubrir el caso de que llegue un reenvio mientras
-            // todavia se esta armando la respuesta del primero.
-            await setDoc(yaProcesadoRef, { fecha: serverTimestamp() });
           }
 
           const numeroCliente = mensaje.from; // número de quien escribió
