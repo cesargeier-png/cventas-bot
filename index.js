@@ -150,13 +150,14 @@ function armarFichaMayorista(producto) {
   return texto;
 }
 
-// Mensaje "Quiénes somos" — se dispara escribiendo la palabra "novedades" (ver esNovedades más abajo),
+// Mensaje "Quiénes somos" — se dispara escribiendo "redes" (footer del menu 1 actualizado 23/09/2026;
+// se sigue aceptando "novedades" por compatibilidad con quien ya conocia esa palabra) (ver esNovedades mas abajo),
 // ya no es una opción numerada del menú minorista. No existe versión mayorista (audiencia de reventa,
 // no tiene sentido mandarla a las redes de venta al público). Texto institucional de base reutilizado
 // del mensaje de bienvenida de WhatsApp Business, con el agregado del respaldo mayorista y el bloque
 // de compra segura (movido acá desde la ficha del producto, pedido de César 18/08/2026).
 function armarNovedades() {
-  let texto = `Somos *C-VENTAS* 👋\n`;
+  let texto = `Somos *C-VENTAS* 👋\n\n`;
   texto += `Más de 10 años en tecnología —comunicación, informática, audio, consolas de juegos, entre otros— trabajando como mayoristas. Ese historial nos avala para arrancar ahora la venta al público.\n\n`;
   texto += `✅ Compra 100% segura:\n`;
   texto += `🔒 Cobro a través del portal Unicobros (Nuevo Banco del Chaco)\n`;
@@ -164,10 +165,11 @@ function armarNovedades() {
   texto += `🏬 Coordinamos entrega en showroom\n`;
   texto += `🚚 También hacemos envíos\n`;
   texto += `📄 Cada venta emite su comprobante y garantía escrita\n\n`;
+  texto += `📲 Encontranos acá:\n`;
   texto += `📸 Instagram: ${INSTAGRAM_LINK}\n`;
   texto += `📘 Facebook: ${FACEBOOK_LINK}\n`;
-  texto += `💬 Grupo de ofertas: ${GRUPO_OFERTAS_LINK}\n`;
-  texto += `\n🔙 Escribí "volver" para ver los productos`;
+  texto += `💬 Grupo de ofertas: ${GRUPO_OFERTAS_LINK}\n\n`;
+  texto += `🔙 Escribí "volver" para ver los productos`;
   return texto;
 }
 
@@ -175,12 +177,12 @@ function armarNovedades() {
 // numerada, se dispara por palabra clave — ver armarNovedades()).
 function armarMenu(productos) {
   let texto = `¡Hola! 👋 Bienvenido a *C-Ventas* 📲\nSoy Bencho, tu asistente designado.\n\n`;
-  texto += `OFERTAS DISPONIBLES, CONOCÉ LA FINANCIACIÓN\n\n`;
+  texto += `Respondé con el número del artículo que te interesa y te cuento todas sus prestaciones y la financiación disponible.\n\n`;
+  texto += `OFERTAS DISPONIBLES 👇\n\n`;
   productos.forEach(function(p, i) {
     texto += `👉 *${i + 1}* ${p.nombre}\n\n`;
   });
-  texto += `Respondé con el número de la oferta que te interesa\n`;
-  texto += `\n— — —\n📢 Conocé más sobre nosotros — escribí "novedades"`;
+  texto += `\n— — —\n📢 Escribí *redes* 🤝 para conocernos y sumate 🎁 gratis al grupo de ofertas 💬`;
   return texto;
 }
 
@@ -301,6 +303,25 @@ app.post('/webhook', function(req, res) {
 
         if (mensajes && mensajes.length > 0) {
           const mensaje = mensajes[0];
+
+          // WhatsApp puede reenviar el mismo webhook mas de una vez para el mismo mensaje entrante
+          // (entrega "al menos una vez" de Meta) — sin este chequeo el bot contestaba dos veces
+          // seguidas con el mismo texto. Se guarda el id del mensaje ya procesado en Firestore y,
+          // si vuelve a llegar, se corta sin volver a contestar. Aplica a minorista y mayorista por
+          // igual. Directiva de Cesar, 23/09/2026.
+          if (mensaje.id) {
+            const yaProcesadoRef = doc(db, 'bot_mensajes_procesados', mensaje.id);
+            const yaProcesadoSnap = await getDoc(yaProcesadoRef);
+            if (yaProcesadoSnap.exists()) {
+              console.log('Mensaje ' + mensaje.id + ' ya procesado, se ignora el reenvio de WhatsApp.');
+              res.sendStatus(200);
+              return;
+            }
+            // Se marca ANTES de procesar, para cubrir el caso de que llegue un reenvio mientras
+            // todavia se esta armando la respuesta del primero.
+            await setDoc(yaProcesadoRef, { fecha: serverTimestamp() });
+          }
+
           const numeroCliente = mensaje.from; // número de quien escribió
           const textoRecibido = mensaje.text && mensaje.text.body; // undefined si no es mensaje de texto (ej. imagen, audio)
           const textoNormalizado = (textoRecibido || '').trim().toLowerCase();
@@ -311,7 +332,7 @@ app.post('/webhook', function(req, res) {
           const esMayoristaTrigger = !esVolver && textoNormalizado.includes(FRASE_MAYORISTA);
           const esNumero = !esVolver && !esMayoristaTrigger && /^\d+$/.test(textoNormalizado);
           // "novedades" ahora es palabra clave (antes era la última opción numerada del menú minorista).
-          const esNovedades = !esVolver && !esMayoristaTrigger && textoNormalizado === 'novedades';
+          const esNovedades = !esVolver && !esMayoristaTrigger && (textoNormalizado === 'redes' || textoNormalizado === 'novedades');
 
           // --- Entrada explícita al modo MAYORISTA (link con mensaje precargado, o cliente que lo escribe a mano) ---
           if (esMayoristaTrigger) {
