@@ -6,6 +6,7 @@ const {
   query, where, orderBy, getDocs, serverTimestamp
 } = require('firebase/firestore');
 const drop = require('./drop');
+const MODO_SOLO_DROP = true; // true = el bot solo responde lo del Drop. false = bot normal (menús, catálogo).
 const app = express();
 app.use(express.json());
 app.use(express.static('.'));
@@ -366,6 +367,14 @@ app.post('/webhook', function(req, res) {
           // --- DROP: mensaje con código de reserva (ej. D-3RBM) o que pregunta por el "drop". Va antes que cualquier
           //     otro flujo. Respuesta fija, sin costo. Si no es del Drop, el bot sigue exactamente como antes.
           if (await drop.responderDrop(depsDrop, numeroCliente, textoRecibido)) {
+            res.sendStatus(200);
+            return;
+          }
+
+          // --- MODO SOLO DROP (directiva de César, 14/10/2026): mientras esté en true, el bot NO contesta nada que no sea del
+          //     Drop (ni menús, ni catálogo, ni precios). Se registra en el log y listo. Para volver al bot normal: poner false.
+          if (MODO_SOLO_DROP) {
+            console.log('MODO_SOLO_DROP: mensaje de ' + numeroCliente + ' no es del Drop, no se responde.');
             res.sendStatus(200);
             return;
           }
