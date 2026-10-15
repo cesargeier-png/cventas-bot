@@ -27,7 +27,7 @@ function armarEstado(ofertas) {
   const bloques = abiertas.map(function (o) {
     const quedan = Math.max(0, o.cupo - o.reservadas);
     const c = cierreTxt(o);
-    return '📱 ' + o.equipo + '\nUSD ' + usd(o.precio_usd) + ' cada una · Quedan ' + quedan + ' de ' + o.cupo + (c ? '\nSe cierra el ' + c + ' hs.' : '');
+    return '📱 ' + o.equipo + '\n' + plata(o, o.precio_usd) + ' cada una · Quedan ' + quedan + ' de ' + o.cupo + (c ? '\nSe cierra el ' + c + ' hs.' : '');
   });
   return '💧 Drop de C-Ventas\n\n' + bloques.join('\n\n')
     + '\n\nPara sumarte o ver tu reserva:\n\n👇 ' + DROP_LINK + ' 👇\n\nSi ya reservaste, escribime tu código (se ve así: D-AB12) y te confirmo todo.';
@@ -35,6 +35,7 @@ function armarEstado(ofertas) {
 function cierreMs(o) { try { return o.cierre.toMillis(); } catch (e) { return 9e15; } }
 
 function usd(n) { return Number(n).toLocaleString('es-AR'); }
+function plata(o, n) { return (o && o.moneda === 'ARS' ? '$ ' : 'USD ') + usd(n); }
 
 function armarRespuesta(reserva, drop) {
   const nombre = (reserva.nombre || '').trim().split(/\s+/)[0] || '';
@@ -54,8 +55,8 @@ function armarRespuesta(reserva, drop) {
   return '¡Hola' + (nombre ? ' ' + nombre : '') + '! 💧 Tu lugar en el Drop quedó confirmado.\n\n'
     + '📱 ' + drop.equipo + '\n'
     + 'Unidades: ' + reserva.unidades + '\n'
-    + 'Precio: USD ' + usd(drop.precio_usd) + ' cada una\n'
-    + 'Total: USD ' + usd(total) + '\n\n'
+    + 'Precio: ' + plata(drop, drop.precio_usd) + ' cada una\n'
+    + 'Total: ' + plata(drop, total) + '\n\n'
     + 'Cómo funciona:\n'
     + '• Pagás cuando recibís la mercadería. No hay seña.\n'
     + '• Tu participación es anónima: solo César sabe cuántos equipos sumaste. Nadie más ve tu compra ni tu precio.\n'
