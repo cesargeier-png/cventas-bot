@@ -5,6 +5,7 @@ const {
   getFirestore, collection, addDoc, doc, getDoc, setDoc, deleteDoc,
   query, where, orderBy, getDocs, serverTimestamp
 } = require('firebase/firestore');
+const drop = require('./drop');
 const app = express();
 app.use(express.json());
 app.use(express.static('.'));
@@ -45,7 +46,7 @@ const db = getFirestore(firebaseApp);
 // Sub-paso 1 (Registro de interesados): guarda cada consulta entrante en la colección "bot_interesados".
 // "segmento" (minorista/mayorista) queda guardado para poder distinguir el origen en ver_interesados.html.
 // No bloquea la respuesta al cliente si Firestore falla (falla en silencio, se loguea y sigue).
-async function registrarInteresado(numeroCliente, textoRecibido, nombreProducto, segmento) {
+async function registrarInteresado(numeroCliente, textoRecibido, nombreProducto, segmento, extra) {
   try {
     await addDoc(collection(db, 'bot_interesados'), {
       numero: numeroCliente,
@@ -53,7 +54,8 @@ async function registrarInteresado(numeroCliente, textoRecibido, nombreProducto,
       producto: nombreProducto, // null si todavía no eligió (se le mandó el menú)
       segmento: segmento || 'minorista',
       fecha: serverTimestamp(),
-      atendido: false
+      atendido: false,
+      ...(extra || {})
     });
   } catch (e) {
     console.error('Error registrando interesado en Firestore:', e);
@@ -240,6 +242,26 @@ async function borrarEstadoMenu(numeroCliente) {
 }
 
 // Envía un mensaje de texto por la Cloud API a un número dado
+// DROP (compra en bloque): conexiones reales para drop.js. Colecciones "drops" (doc "actual") y "drop_reservas".
+const depsDrop = {
+  log: function(m) { console.log(m); },
+  enviar: function(numero, texto) { enviarMensaje(numero, texto); },
+  registrarInteresado: function(numero, mensaje, producto, extra) {
+    return registrarInteresado(numero, mensaje, producto, 'mayorista', extra);
+  },
+  leerDrop: async function() {
+    const snap = await getDoc(doc(db, 'drops', 'actual'));
+    return snap.exists() ? snap.data() : null;
+  },
+  buscarReserva: async function(codigo) {
+    const snap = await getDocs(query(collection(db, 'drop_reservas'), where('codigo', '==', codigo)));
+    if (snap.empty) return null;
+    const todas = snap.docs.map(function(d) { return d.data(); });
+    todas.sort(function(a, b) { return String(b.id_oferta).localeCompare(String(a.id_oferta)); });
+    return todas[0];
+  }
+};
+
 function enviarMensaje(numeroDestino, texto) {
   const data = JSON.stringify({
     messaging_product: 'whatsapp',
@@ -340,6 +362,13 @@ app.post('/webhook', function(req, res) {
           const esNumero = !esVolver && !esMayoristaTrigger && /^\d+$/.test(textoNormalizado);
           // "novedades" ahora es palabra clave (antes era la última opción numerada del menú minorista).
           const esNovedades = !esVolver && !esMayoristaTrigger && (textoNormalizado === 'redes' || textoNormalizado === 'novedades');
+
+          // --- DROP: mensaje con código de reserva (ej. D-3RBM) o que pregunta por el "drop". Va antes que cualquier
+          //     otro flujo. Respuesta fija, sin costo. Si no es del Drop, el bot sigue exactamente como antes.
+          if (await drop.responderDrop(depsDrop, numeroCliente, textoRecibido)) {
+            res.sendStatus(200);
+            return;
+          }
 
           // --- Entrada explícita al modo MAYORISTA (link con mensaje precargado, o cliente que lo escribe a mano) ---
           if (esMayoristaTrigger) {
