@@ -254,6 +254,10 @@ const depsDrop = {
     const snap = await getDocs(collection(db, 'drops'));
     return snap.docs.map(function(d) { return d.data(); }).filter(function(o) { return o && o.id_oferta && !o.oculto; });
   },
+  buscarReservasDeCliente: async function(cid) {
+    const snap = await getDocs(query(collection(db, 'drop_reservas'), where('cid', '==', cid)));
+    return snap.docs.map(function(d) { return d.data(); });
+  },
   buscarReserva: async function(codigo) {
     const snap = await getDocs(query(collection(db, 'drop_reservas'), where('codigo', '==', codigo)));
     if (snap.empty) return null;

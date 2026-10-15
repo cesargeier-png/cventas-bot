@@ -37,7 +37,7 @@ function cierreMs(o) { try { return o.cierre.toMillis(); } catch (e) { return 9e
 function usd(n) { return Number(n).toLocaleString('es-AR'); }
 function plata(o, n) { return (o && o.moneda === 'ARS' ? '$ ' : 'USD ') + usd(n); }
 
-function armarRespuesta(reserva, drop) {
+function armarRespuesta(reserva, drop, otras) {
   const nombre = (reserva.nombre || '').trim().split(/\s+/)[0] || '';
   const total = reserva.unidades * Number(drop.precio_usd);
   const estado = drop.estado;
@@ -62,7 +62,16 @@ function armarRespuesta(reserva, drop) {
     + '• Tu participación es anónima: solo César sabe cuántos equipos sumaste. Nadie más ve tu compra ni tu precio.\n'
     + '• Es un compromiso de compra: el Drop se concreta si entre todos completamos las ' + drop.cupo + ' unidades.\n'
     + situacion + '\n\n'
+    + armarOtras(otras)
     + '¡Gracias por sumarte!';
+}
+
+// Otras reservas del mismo cliente en otras ofertas (para que vea todo su pedido junto).
+function armarOtras(otras) {
+  if (!otras || !otras.length) return '';
+  return 'También tenés reservado:\n' + otras.map(function (x) {
+    return '• ' + x.oferta.equipo + ': ' + x.reserva.unidades + ' un. (' + plata(x.oferta, x.reserva.unidades * Number(x.oferta.precio_usd)) + ')';
+  }).join('\n') + '\n\n';
 }
 
 function armarNoEncontrado() {
@@ -91,7 +100,16 @@ async function responderDrop(deps, numero, texto) {
     const ofertas = (await deps.leerDrops()) || [];
     const drop = ofertas.find(function (o) { return o.id_oferta === reserva.id_oferta; });
     if (!drop) { deps.enviar(numero, armarDropTerminado()); return true; }
-    deps.enviar(numero, armarRespuesta(reserva, drop));
+    let otras = [];
+    try {
+      if (deps.buscarReservasDeCliente && reserva.cid) {
+        const todas = (await deps.buscarReservasDeCliente(reserva.cid)) || [];
+        otras = todas.filter(function (r) { return r.id_oferta !== reserva.id_oferta && r.unidades > 0; })
+          .map(function (r) { return { reserva: r, oferta: ofertas.find(function (o) { return o.id_oferta === r.id_oferta; }) }; })
+          .filter(function (x) { return x.oferta; });
+      }
+    } catch (e) { deps.log('Drop: no se pudieron buscar otras reservas: ' + e.message); }
+    deps.enviar(numero, armarRespuesta(reserva, drop, otras));
     try { await deps.registrarInteresado(numero, texto, 'Drop: ' + drop.equipo, { origen: 'drop', codigo: codigo, unidades: reserva.unidades, nombre: reserva.nombre || '' }); } catch (e) { deps.log('Drop: no se pudo registrar interesado: ' + e.message); }
     return true;
   } catch (e) {
