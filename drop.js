@@ -11,21 +11,28 @@ function extraerCodigo(texto) {
   return m ? m[0].toUpperCase() : null;
 }
 
-const DROP_LINK = 'https://c-ventas.web.app/drop.html';
+const DROP_LINK = 'https://c-ventas.web.app/drop.html?v=3';
 function esConsultaDrop(texto) { return /\bdrop\b/i.test(texto || ''); }
 
-function armarEstado(drop) {
-  if (!drop) return 'Por ahora no hay un Drop abierto. 💧 Cuando se abra uno, te enteramos primero.';
-  const quedan = Math.max(0, drop.cupo - drop.reservadas);
-  let cierre = '';
-  try { cierre = drop.cierre.toDate().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }); } catch (e) {}
-  let estado;
-  if (drop.estado === 'abierto') estado = 'Van ' + drop.reservadas + ' de ' + drop.cupo + '. Quedan ' + quedan + ' unidades.' + (cierre ? '\nSe cierra el ' + cierre + ' hs.' : '');
-  else if (drop.estado === 'completo') estado = '¡Se completó el cupo de ' + drop.cupo + ' unidades!';
-  else estado = 'Este Drop ya cerró (' + drop.reservadas + ' de ' + drop.cupo + ' unidades).';
-  return '💧 Drop de C-Ventas\n\n📱 ' + drop.equipo + '\nPrecio: USD ' + usd(drop.precio_usd) + ' cada una\n' + estado
-    + (drop.estado === 'abierto' ? '\n\nPara sumarte o ver tu reserva:\n\n👇 ' + DROP_LINK + ' 👇\n\nSi ya reservaste, escribime tu código (se ve así: D-AB12) y te confirmo todo.' : '');
+function cierreTxt(o) {
+  try { return o.cierre.toDate().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }); } catch (e) { return ''; }
 }
+
+// Estado de TODAS las ofertas abiertas (puede haber varias a la vez, cada una con su cupo y su cierre).
+function armarEstado(ofertas) {
+  const lista = (Array.isArray(ofertas) ? ofertas : (ofertas ? [ofertas] : [])).filter(function (o) { return o && !o.oculto; });
+  const abiertas = lista.filter(function (o) { return o.estado === 'abierto'; })
+    .sort(function (a, b) { return cierreMs(a) - cierreMs(b); });
+  if (!abiertas.length) return 'Por ahora no hay un Drop abierto. 💧 Cuando se abra uno, te enteramos primero.';
+  const bloques = abiertas.map(function (o) {
+    const quedan = Math.max(0, o.cupo - o.reservadas);
+    const c = cierreTxt(o);
+    return '📱 ' + o.equipo + '\nUSD ' + usd(o.precio_usd) + ' cada una · Quedan ' + quedan + ' de ' + o.cupo + (c ? '\nSe cierra el ' + c + ' hs.' : '');
+  });
+  return '💧 Drop de C-Ventas\n\n' + bloques.join('\n\n')
+    + '\n\nPara sumarte o ver tu reserva:\n\n👇 ' + DROP_LINK + ' 👇\n\nSi ya reservaste, escribime tu código (se ve así: D-AB12) y te confirmo todo.';
+}
+function cierreMs(o) { try { return o.cierre.toMillis(); } catch (e) { return 9e15; } }
 
 function usd(n) { return Number(n).toLocaleString('es-AR'); }
 
@@ -68,21 +75,21 @@ function armarDropTerminado() {
 }
 
 // Devuelve true si el mensaje era de un Drop y ya se contestó (el bot no sigue con otros flujos).
-// deps: leerDrop(), buscarReserva(codigo), enviar(numero, texto), registrarInteresado(numero, mensaje, producto, extra), log(msg)
+// deps: leerDrops() (lista de ofertas), buscarReserva(codigo), enviar(numero, texto), registrarInteresado(numero, mensaje, producto, extra), log(msg)
 async function responderDrop(deps, numero, texto) {
   const codigo = extraerCodigo(texto);
   if (!codigo) {
     if (!esConsultaDrop(texto)) return false;
-    try { deps.enviar(numero, armarEstado(await deps.leerDrop())); }
+    try { deps.enviar(numero, armarEstado(await deps.leerDrops())); }
     catch (e) { deps.log('Drop: error: ' + e.message); deps.enviar(numero, 'Ahora no puedo ver el estado del Drop. Escribinos al ' + NUMERO_NEGOCIO + ' y te contamos.'); }
     return true;
   }
   try {
-    const drop = await deps.leerDrop();
-    if (!drop) { deps.enviar(numero, armarDropTerminado()); return true; }
     const reserva = await deps.buscarReserva(codigo);
     if (!reserva) { deps.enviar(numero, armarNoEncontrado()); return true; }
-    if (reserva.id_oferta !== drop.id_oferta) { deps.enviar(numero, armarDropTerminado()); return true; }
+    const ofertas = (await deps.leerDrops()) || [];
+    const drop = ofertas.find(function (o) { return o.id_oferta === reserva.id_oferta; });
+    if (!drop) { deps.enviar(numero, armarDropTerminado()); return true; }
     deps.enviar(numero, armarRespuesta(reserva, drop));
     try { await deps.registrarInteresado(numero, texto, 'Drop: ' + drop.equipo, { origen: 'drop', codigo: codigo, unidades: reserva.unidades, nombre: reserva.nombre || '' }); } catch (e) { deps.log('Drop: no se pudo registrar interesado: ' + e.message); }
     return true;

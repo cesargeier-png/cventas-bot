@@ -243,16 +243,16 @@ async function borrarEstadoMenu(numeroCliente) {
 }
 
 // Envía un mensaje de texto por la Cloud API a un número dado
-// DROP (compra en bloque): conexiones reales para drop.js. Colecciones "drops" (doc "actual") y "drop_reservas".
+// DROP (compra en bloque): conexiones reales para drop.js. Colecciones "drops" (una por oferta, puede haber varias abiertas) y "drop_reservas".
 const depsDrop = {
   log: function(m) { console.log(m); },
   enviar: function(numero, texto) { enviarMensaje(numero, texto); },
   registrarInteresado: function(numero, mensaje, producto, extra) {
     return registrarInteresado(numero, mensaje, producto, 'mayorista', extra);
   },
-  leerDrop: async function() {
-    const snap = await getDoc(doc(db, 'drops', 'actual'));
-    return snap.exists() ? snap.data() : null;
+  leerDrops: async function() {
+    const snap = await getDocs(collection(db, 'drops'));
+    return snap.docs.map(function(d) { return d.data(); }).filter(function(o) { return o && o.id_oferta && !o.oculto; });
   },
   buscarReserva: async function(codigo) {
     const snap = await getDocs(query(collection(db, 'drop_reservas'), where('codigo', '==', codigo)));
