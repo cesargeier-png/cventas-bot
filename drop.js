@@ -19,7 +19,10 @@ function cierreTxt(o) {
 }
 
 // Estado de TODAS las ofertas abiertas (puede haber varias a la vez, cada una con su cupo y su cierre).
-const MSG_CERRADO = 'Este Drop está cerrado 🔒 Quedate atento a los próximos avisos. 💧 Apenas se abra el próximo, te enteramos primero.';
+const MSG_CERRADO = '¡Sí, próximamente! 💧 Si ya participaste en un Drop, seguramente vas a recibir las próximas ofertas. Quedate atento a los avisos.';
+
+// Un Drop está abierto de verdad solo si su estado es "abierto" Y su hora de cierre todavía no pasó (el estado en la base no cambia solo al vencer).
+function vigente(o) { return !!o && !o.oculto && o.estado === 'abierto' && cierreMs(o) > Date.now(); }
 
 // Anota a la persona en la lista de espera del próximo Drop (colección propia del Drop: drop_espera).
 async function anotarProximo(deps, numero, texto) {
@@ -29,7 +32,7 @@ async function anotarProximo(deps, numero, texto) {
 
 function armarEstado(ofertas) {
   const lista = (Array.isArray(ofertas) ? ofertas : (ofertas ? [ofertas] : [])).filter(function (o) { return o && !o.oculto; });
-  const abiertas = lista.filter(function (o) { return o.estado === 'abierto'; })
+  const abiertas = lista.filter(vigente)
     .sort(function (a, b) { return cierreMs(a) - cierreMs(b); });
   if (!abiertas.length) return MSG_CERRADO;
   const bloques = abiertas.map(function (o) {
@@ -48,7 +51,7 @@ function plata(o, n) { return (o && o.moneda === 'ARS' ? '$ ' : 'USD ') + usd(n)
 function armarRespuesta(reserva, drop, otras) {
   const nombre = (reserva.nombre || '').trim().split(/\s+/)[0] || '';
   const total = reserva.unidades * Number(drop.precio_usd);
-  const estado = drop.estado;
+  const estado = (drop.estado === 'abierto' && !vigente(drop)) ? 'cerrado' : drop.estado;
   let situacion;
   if (estado === 'completo') {
     situacion = '• ¡Se completó el cupo de ' + drop.cupo + ' unidades! Te avisamos apenas llegue la mercadería.';
@@ -88,7 +91,7 @@ function armarNoEncontrado() {
 }
 
 function armarDropTerminado() {
-  return MSG_CERRADO + '\n\nCualquier duda, escribinos al ' + NUMERO_NEGOCIO + '.';
+  return 'Ese Drop ya cerró 🔒 ' + MSG_CERRADO + '\n\nCualquier duda, escribinos al ' + NUMERO_NEGOCIO + '.';
 }
 
 // Devuelve true si el mensaje era de un Drop y ya se contestó (el bot no sigue con otros flujos).
@@ -100,7 +103,7 @@ async function responderDrop(deps, numero, texto) {
     try {
       const ofs = (await deps.leerDrops()) || [];
       deps.enviar(numero, armarEstado(ofs));
-      if (!ofs.some(function (o) { return o && !o.oculto && o.estado === 'abierto'; })) await anotarProximo(deps, numero, texto);
+      if (!ofs.some(vigente)) await anotarProximo(deps, numero, texto);
     }
     catch (e) { deps.log('Drop: error: ' + e.message); deps.enviar(numero, 'Ahora no puedo ver el estado del Drop. Escribinos al ' + NUMERO_NEGOCIO + ' y te contamos.'); }
     return true;
