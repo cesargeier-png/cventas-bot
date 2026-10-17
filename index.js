@@ -254,6 +254,15 @@ const depsDrop = {
     const snap = await getDocs(collection(db, 'drops'));
     return snap.docs.map(function(d) { return d.data(); }).filter(function(o) { return o && o.id_oferta && !o.oculto; });
   },
+  // Lista de espera del próximo Drop (colección propia: drop_espera).
+  anotarEspera: async function(numero, texto) {
+    await addDoc(collection(db, 'drop_espera'), { numero: String(numero), mensaje: texto || '', fecha: serverTimestamp() });
+  },
+  // Guarda el WhatsApp de quien escribió su código en una colección aparte (drop_contactos, un documento por código),
+  // para no mezclar teléfonos con las reservas que lee la página pública.
+  guardarWhatsapp: async function(codigo, numero) {
+    await setDoc(doc(db, 'drop_contactos', String(codigo).toUpperCase()), { codigo: String(codigo).toUpperCase(), numero: String(numero), fecha: serverTimestamp() }, { merge: true });
+  },
   buscarReservasDeCliente: async function(cid) {
     const snap = await getDocs(query(collection(db, 'drop_reservas'), where('cid', '==', cid)));
     return snap.docs.map(function(d) { return d.data(); });
