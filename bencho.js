@@ -79,7 +79,7 @@ async function responder(d, numero, texto) {
       d.enviarMensaje(numero,
         '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\n' +
         'El *' + nombre + '* lo traemos a pedido y llega en ' + plazo + '. Tenés dos formas:\n\n' +
-        '🔥 1️⃣ *Compra anticipada: ' + ars(antic) + '*, un precio increíble que no conseguís en ninguna otra tienda.\nPagás ahora y ahorrás *' + ars(reemb - antic) + '*.\nTambién en cuotas: ' + cuotas(antic) + '\n\n' +
+        '1️⃣ *Compra anticipada: 🔥 ' + ars(antic) + '*, un precio increíble que no conseguís en ninguna otra tienda.\nPagás ahora y ahorrás *' + ars(reemb - antic) + '*.\nTambién en cuotas: ' + cuotas(antic) + '\n\n' +
         '2️⃣ *Pagás al recibirlo: ' + ars(reemb) + '*\nEn cuotas: ' + cuotas(reemb) + '\n\n' +
         TARJETAS + '\n' + ZOCALO + '\n\nRespondé *1* o *2*.');
       return true;
@@ -106,16 +106,23 @@ async function responder(d, numero, texto) {
   try { pedidos = await pedidosDe(d, numero); } catch (e) { console.log('bencho pedidosDe: ' + e.message); }
 
   if (tl === '1' || tl === '2') {
-    const esp = pedidos.find(x => x.estado === 'esperando_forma');
+    // Si ya eligió y todavía no pagó, puede cambiar de forma (1 <-> 2) sobre el MISMO pedido (mismo código).
+    const esp = pedidos.find(x => x.estado === 'esperando_forma') ||
+      pedidos.find(x => x.estado === 'pedido' && x.pago !== 'pagado' && x.forma);
     if (!esp) return false;
     const forma = tl === '1' ? 'anticipada' : 'reembolso';
-    const codigo = codigoPedido();
-    await d.updateDoc(d.doc(d.db, 'bot_interesados', esp.id), { estado: 'pedido', forma, codigo, pago: 'pendiente', fecha_pedido: d.serverTimestamp() });
+    const cambio = esp.estado === 'pedido';
+    const codigo = esp.codigo || codigoPedido();
+    await d.updateDoc(d.doc(d.db, 'bot_interesados', esp.id), cambio
+      ? { forma, forma_cambiada: true }
+      : { estado: 'pedido', forma, codigo, pago: 'pendiente', fecha_pedido: d.serverTimestamp() });
+    const otra = forma === 'anticipada' ? '*2* para pagar al recibirlo' : '*1* para la compra anticipada';
     const formaTxt = forma === 'anticipada' ? 'compra anticipada, ' + ars(esp.precio_anticipada) : 'pagás al recibir, ' + ars(esp.precio_reembolso);
     d.enviarMensaje(numero,
-      '¡Listo! ✅ Tu pedido es el *' + codigo + '* (' + formaTxt + ').\n' +
+      (cambio ? '¡Listo! 🔄 Cambiamos tu pedido *' + codigo + '* a ' + formaTxt + '.\n' : '¡Listo! ✅ Tu pedido es el *' + codigo + '* (' + formaTxt + ').\n') +
       'Para confirmarlo, escribile a nuestro vendedor acá 👇\n\n' +
-      linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, quiero cerrar el pedido ' + codigo + ': ' + esp.producto + ', ' + formaTxt) + '\n');
+      linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, quiero cerrar el pedido ' + codigo + ': ' + esp.producto + ', ' + formaTxt) + '\n\n' +
+      '¿Cambiaste de idea? Respondé ' + otra + '.');
     return true;
   }
 
