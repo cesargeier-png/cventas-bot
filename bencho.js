@@ -12,6 +12,12 @@
 const COEF = 1.37; // Financiero/César 14/11/2026
 const TARJETAS = '💳 Trabajamos con *Visa, Mastercard y Tuya* hasta *9 cuotas*, y *Naranja X* en *Plan Z y 6 cuotas*.';
 const CATALOGO = 'https://c-ventas.web.app/catalogo_visual.html';
+// Zócalo fijo del grupo (Contenido, 01/09/2026) + seguimiento online (César, 14/11/2026)
+const ZOCALO = '🏦 *Compra protegida* — Portal *Unicobros* (Nuevo Banco del Chaco)\n' +
+  '🚚 *Envío sin cargo* a Resistencia\n' +
+  '🏠 También podés retirar por nuestro *showroom*, previo turno agendado\n' +
+  '🛡️ Todos nuestros artículos cuentan con *garantía escrita*\n' +
+  '📦 Seguí tu pedido *online*, paso a paso, desde tu celular';
 const PLAZOS = { '24hs': '24 hs', '5a7': '5 a 7 días hábiles', '7a10': '7 a 10 días hábiles' };
 const ESTADOS = { pedido: 'Pedido', transito: 'En tránsito', listo: 'Listo para retiro / entrega', entregado: 'Entregado' };
 
@@ -19,7 +25,7 @@ function ars(n) { return '$' + Math.round(Number(n) || 0).toLocaleString('es-AR'
 function linkVendedor(numeroVendedor, texto) { return 'https://wa.me/' + numeroVendedor + '?text=' + encodeURIComponent(texto); }
 function esV2(p) { return Number(p.publico_usd) > 0 && Number(p.base_usd) > 0; }
 function codigoPedido() { return 'P-' + String(Math.floor(1000 + Math.random() * 9000)); }
-function cuotas(m) { return [3, 6, 9].map(n => n + ' cuotas de ' + ars(m * COEF / n)).join(' · '); }
+function cuotas(m) { return [3, 6, 9].map(n => n + ' de ' + ars(m * COEF / n)).join(' · '); }
 
 async function leerTC(d) {
   try {
@@ -73,13 +79,14 @@ async function responder(d, numero, texto) {
       d.enviarMensaje(numero,
         '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\n' +
         'El *' + nombre + '* lo traemos a pedido y llega en ' + plazo + '. Tenés dos formas:\n\n' +
-        '🔥 1️⃣ *Compra anticipada: ' + ars(antic) + '*\nPagás ahora y ahorrás *' + ars(reemb - antic) + '*.\n\n' +
-        '2️⃣ *Pagás al recibir: ' + ars(reemb) + '*\n\n' +
-        TARJETAS + '\n\nRespondé *1* o *2*.');
+        '🔥 1️⃣ *Compra anticipada: ' + ars(antic) + '*, un precio increíble que no conseguís en ninguna otra tienda.\nPagás ahora y ahorrás *' + ars(reemb - antic) + '*.\nTambién en cuotas: ' + cuotas(antic) + '\n\n' +
+        '2️⃣ *Pagás al recibirlo: ' + ars(reemb) + '*\nEn cuotas: ' + cuotas(reemb) + '\n\n' +
+        TARJETAS + '\n' + ZOCALO + '\n\nRespondé *1* o *2*.');
       return true;
     }
     // Entrega inmediata
-    let contado;
+    let contado, listaCuotas;
+    listaCuotas = esV2(p) ? Math.round(Number(p.publico_usd) * tc) : (Number(p.precio_lista) > 0 ? Number(p.precio_lista) : 0);
     if (esV2(p)) contado = (p.oferta_activa && Number(p.oferta_valor) > 0) ? Number(p.oferta_valor) : Math.round(Number(p.publico_usd) * tc);
     else contado = Number(p.precio_lista) > 0 ? Number(p.precio_lista) : parseInt(String(p.precio_contado || '').replace(/[^0-9]/g, ''), 10) || 0;
     await d.addDoc(d.collection(d.db, 'bot_interesados'), { tipo: 'interes', numero, producto: nombre, producto_id: id, mensaje_recibido: t, segmento: 'minorista', fecha: d.serverTimestamp(), atendido: false });
@@ -87,8 +94,8 @@ async function responder(d, numero, texto) {
       '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\n' +
       'El *' + nombre + '* cuenta con *entrega inmediata* y tiene un solo precio:\n' +
       (contado ? '💵 *' + ars(contado) + '* (contado, transferencia o efectivo)\n' : '') +
-      (contado ? 'En cuotas: ' + cuotas(contado) + '\n' : '') +
-      TARJETAS + '\n\n' +
+      ((listaCuotas || contado) ? 'En cuotas: ' + cuotas(listaCuotas || contado) + '\n' : '') +
+      TARJETAS + '\n' + ZOCALO + '\n\n' +
       'Para cerrar la compra, escribile a nuestro vendedor acá 👇\n\n' +
       linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, quiero comprar el ' + nombre) + '\n');
     return true;
