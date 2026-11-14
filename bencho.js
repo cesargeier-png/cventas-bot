@@ -46,7 +46,8 @@ async function pedidosDe(d, numero) {
 
 async function responder(d, numero, texto) {
   const t = String(texto || '').trim();
-  const tl = t.toLowerCase();
+  // Acepta «1», «1️⃣», «1.» o «opción 1» (lo mismo con 2).
+  let tl = t.toLowerCase().replace(/[\ufe0f\u20e3]/g, '').replace(/^(opci[oó]n|la)\s*/, '').replace(/[.!)\s]+$/, '');
   if (!t) return false;
 
   // 1) Viene del botón «Me interesa» del catálogo
@@ -81,7 +82,7 @@ async function responder(d, numero, texto) {
         'El *' + nombre + '* lo traemos a pedido y llega en ' + plazo + '. Tenés dos formas:\n\n' +
         '1️⃣ *Compra anticipada: 🔥 ' + ars(antic) + '*, un precio increíble que no conseguís en ninguna otra tienda.\nPagás ahora y ahorrás *' + ars(reemb - antic) + '*.\nTambién en cuotas: ' + cuotas(antic) + '\n\n' +
         '2️⃣ *Pagás al recibirlo: ' + ars(reemb) + '*\nEn cuotas: ' + cuotas(reemb) + '\n\n' +
-        TARJETAS + '\n' + ZOCALO + '\n\nRespondé *1* o *2*.');
+        TARJETAS + '\n' + ZOCALO + '\n\n\n*RESPONDÉ 1️⃣ o 2️⃣*');
       return true;
     }
     // Entrega inmediata
@@ -116,13 +117,13 @@ async function responder(d, numero, texto) {
     await d.updateDoc(d.doc(d.db, 'bot_interesados', esp.id), cambio
       ? { forma, forma_cambiada: true }
       : { estado: 'pedido', forma, codigo, pago: 'pendiente', fecha_pedido: d.serverTimestamp() });
-    const otra = forma === 'anticipada' ? '*2* para pagar al recibirlo' : '*1* para la compra anticipada';
+    const otra = forma === 'anticipada' ? '2️⃣ para pagar al recibirlo' : '1️⃣ para la compra anticipada';
     const formaTxt = forma === 'anticipada' ? 'compra anticipada, ' + ars(esp.precio_anticipada) : 'pagás al recibir, ' + ars(esp.precio_reembolso);
     d.enviarMensaje(numero,
       (cambio ? '¡Listo! 🔄 Cambiamos tu pedido *' + codigo + '* a ' + formaTxt + '.\n' : '¡Listo! ✅ Tu pedido es el *' + codigo + '* (' + formaTxt + ').\n') +
       'Para confirmarlo, escribile a nuestro vendedor acá 👇\n\n' +
-      linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, quiero cerrar el pedido ' + codigo + ': ' + esp.producto + ', ' + formaTxt) + '\n\n' +
-      '¿Cambiaste de idea? Respondé ' + otra + '.');
+      linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, quiero cerrar el pedido ' + codigo + ': ' + esp.producto + ', ' + formaTxt) + '\n\n\n' +
+      '¿Cambiaste de idea? *RESPONDÉ* ' + otra + '.');
     return true;
   }
 
