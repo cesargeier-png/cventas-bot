@@ -2,10 +2,11 @@ const express = require('express');
 const https = require('https');
 const { initializeApp } = require('firebase/app');
 const {
-  getFirestore, collection, addDoc, doc, getDoc, setDoc, deleteDoc,
+  getFirestore, collection, addDoc, doc, getDoc, setDoc, deleteDoc, updateDoc,
   query, where, orderBy, getDocs, serverTimestamp
 } = require('firebase/firestore');
 const drop = require('./drop');
+const bencho = require('./bencho'); // 14/11/2026: «Me interesa» del catálogo + Agenda de pedidos
 const MODO_SOLO_DROP = true; // true = el bot solo responde lo del Drop. false = bot normal (menús, catálogo).
 const app = express();
 app.use(express.json());
@@ -244,6 +245,12 @@ async function borrarEstadoMenu(numeroCliente) {
 
 // Envía un mensaje de texto por la Cloud API a un número dado
 // DROP (compra en bloque): conexiones reales para drop.js. Colecciones "drops" (una por oferta, puede haber varias abiertas) y "drop_reservas".
+const depsBencho = {
+  db, doc, getDoc, getDocs, addDoc, updateDoc, collection, query, where, serverTimestamp,
+  enviarMensaje: function(numero, texto) { enviarMensaje(numero, texto); },
+  NUMERO_CIERRE_VENTA: NUMERO_CIERRE_VENTA
+};
+
 const depsDrop = {
   log: function(m) { console.log(m); },
   enviar: function(numero, texto) { enviarMensaje(numero, texto); },
@@ -382,6 +389,17 @@ app.post('/webhook', function(req, res) {
           if (await drop.responderDrop(depsDrop, numeroCliente, textoRecibido)) {
             res.sendStatus(200);
             return;
+          }
+
+          // --- BENCHO (14/11/2026): «Me interesa» del catálogo, elección 1/2, estado del pedido y «hola».
+          //     Va antes del MODO SOLO DROP; si no le corresponde, devuelve false y todo sigue como antes.
+          try {
+            if (await bencho.responder(depsBencho, numeroCliente, textoRecibido)) {
+              res.sendStatus(200);
+              return;
+            }
+          } catch (benchoErr) {
+            console.log('Error en bencho: ' + benchoErr.message);
           }
 
           // --- MODO SOLO DROP (directiva de César, 14/10/2026): mientras esté en true, el bot NO contesta nada que no sea del
