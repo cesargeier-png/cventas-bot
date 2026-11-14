@@ -44,7 +44,9 @@ async function pedidosDe(d, numero) {
   return out;
 }
 
-async function responder(d, numero, texto) {
+// nombre = nombre de perfil de WhatsApp del cliente (lo manda Meta en el webhook); César lo puede corregir en la Agenda.
+async function responder(d, numero, texto, nombrePerfil) {
+  const nombreCliente = String(nombrePerfil || '').trim();
   const t = String(texto || '').trim();
   // Acepta «1», «1️⃣», «1.» o «opción 1» (lo mismo con 2).
   let tl = t.toLowerCase().replace(/[\ufe0f\u20e3]/g, '').replace(/^(opci[oó]n|la)\s*/, '').replace(/[.!)\s]+$/, '');
@@ -64,7 +66,7 @@ async function responder(d, numero, texto) {
     const tc = await leerTC(d);
     const sinStock = esV2(p) ? p.entrega === 'sin_stock' : (p.sinStock === true || p.disponibilidad === 'sin_stock');
     if (sinStock) {
-      await d.addDoc(d.collection(d.db, 'bot_interesados'), { tipo: 'avisar', numero, producto: nombre, producto_id: id, mensaje_recibido: t, segmento: 'minorista', avisar_cuando_vuelva: true, fecha: d.serverTimestamp(), atendido: false });
+      await d.addDoc(d.collection(d.db, 'bot_interesados'), { tipo: 'avisar', numero, nombre: nombreCliente, producto: nombre, producto_id: id, mensaje_recibido: t, segmento: 'minorista', avisar_cuando_vuelva: true, fecha: d.serverTimestamp(), atendido: false });
       d.enviarMensaje(numero, '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\nEl *' + nombre + '* está sin stock en este momento.\n¡Anotado! 📝 Apenas vuelva te aviso por acá.');
       return true;
     }
@@ -73,7 +75,7 @@ async function responder(d, numero, texto) {
       const antic = Math.round(Number(p.base_usd) * tc);
       const plazo = PLAZOS[p.entrega] || PLAZOS['5a7'];
       await d.addDoc(d.collection(d.db, 'bot_interesados'), {
-        tipo: 'pedido', estado: 'esperando_forma', pago: 'pendiente', numero, producto: nombre, producto_id: id,
+        tipo: 'pedido', estado: 'esperando_forma', pago: 'pendiente', numero, nombre: nombreCliente, producto: nombre, producto_id: id,
         precio_anticipada: antic, precio_reembolso: reemb, plazo, mensaje_recibido: t, segmento: 'minorista',
         fecha: d.serverTimestamp(), atendido: false
       });
@@ -90,7 +92,7 @@ async function responder(d, numero, texto) {
     listaCuotas = esV2(p) ? Math.round(Number(p.publico_usd) * tc) : (Number(p.precio_lista) > 0 ? Number(p.precio_lista) : 0);
     if (esV2(p)) contado = (p.oferta_activa && Number(p.oferta_valor) > 0) ? Number(p.oferta_valor) : Math.round(Number(p.publico_usd) * tc);
     else contado = Number(p.precio_lista) > 0 ? Number(p.precio_lista) : parseInt(String(p.precio_contado || '').replace(/[^0-9]/g, ''), 10) || 0;
-    await d.addDoc(d.collection(d.db, 'bot_interesados'), { tipo: 'interes', numero, producto: nombre, producto_id: id, mensaje_recibido: t, segmento: 'minorista', fecha: d.serverTimestamp(), atendido: false });
+    await d.addDoc(d.collection(d.db, 'bot_interesados'), { tipo: 'interes', numero, nombre: nombreCliente, producto: nombre, producto_id: id, mensaje_recibido: t, segmento: 'minorista', fecha: d.serverTimestamp(), atendido: false });
     d.enviarMensaje(numero,
       '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\n' +
       'El *' + nombre + '* cuenta con *entrega inmediata* y tiene un solo precio:\n' +

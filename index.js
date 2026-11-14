@@ -394,7 +394,8 @@ app.post('/webhook', function(req, res) {
           // --- BENCHO (14/11/2026): «Me interesa» del catálogo, elección 1/2, estado del pedido y «hola».
           //     Va antes del MODO SOLO DROP; si no le corresponde, devuelve false y todo sigue como antes.
           try {
-            if (await bencho.responder(depsBencho, numeroCliente, textoRecibido)) {
+            const perfil = (value.contacts && value.contacts[0] && value.contacts[0].profile && value.contacts[0].profile.name) || '';
+            if (await bencho.responder(depsBencho, numeroCliente, textoRecibido, perfil)) {
               res.sendStatus(200);
               return;
             }
