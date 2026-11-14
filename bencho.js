@@ -23,7 +23,10 @@ const ESTADOS = { pedido: 'Pedido', transito: 'En tránsito', listo: 'Listo para
 
 function ars(n) { return '$' + Math.round(Number(n) || 0).toLocaleString('es-AR'); }
 function linkVendedor(numeroVendedor, texto) { return 'https://wa.me/' + numeroVendedor + '?text=' + encodeURIComponent(texto); }
-function esV2(p) { return Number(p.publico_usd) > 0 && Number(p.base_usd) > 0; }
+// 14/11/2026: también los cargados a mano con precio fijo en pesos (publico_ars / base_ars).
+function esV2(p) { return Number(p.publico_ars) > 0 || (Number(p.publico_usd) > 0 && Number(p.base_usd) > 0); }
+function precioLista(p, tc) { return Number(p.publico_ars) > 0 ? Math.round(Number(p.publico_ars)) : Math.round(Number(p.publico_usd) * tc); }
+function precioAntic(p, tc) { return Number(p.publico_ars) > 0 ? Math.round(Number(p.base_ars) || Number(p.publico_ars)) : Math.round(Number(p.base_usd) * tc); }
 function codigoPedido() { return 'P-' + String(Math.floor(1000 + Math.random() * 9000)); }
 function cuotas(m) { return [3, 6, 9].map(n => n + ' de ' + ars(m * COEF / n)).join(' · '); }
 
@@ -70,9 +73,9 @@ async function responder(d, numero, texto, nombrePerfil) {
       d.enviarMensaje(numero, '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\nEl *' + nombre + '* está sin stock en este momento.\n¡Anotado! 📝 Apenas vuelva te aviso por acá.');
       return true;
     }
-    if (esV2(p) && p.entrega !== 'inmediata') {
-      const reemb = Math.round(Number(p.publico_usd) * tc);
-      const antic = Math.round(Number(p.base_usd) * tc);
+    if (esV2(p) && p.entrega !== 'inmediata' && precioAntic(p, tc) < precioLista(p, tc)) {
+      const reemb = precioLista(p, tc);
+      const antic = precioAntic(p, tc);
       const plazo = PLAZOS[p.entrega] || PLAZOS['5a7'];
       await d.addDoc(d.collection(d.db, 'bot_interesados'), {
         tipo: 'pedido', estado: 'esperando_forma', pago: 'pendiente', numero, nombre: nombreCliente, producto: nombre, producto_id: id,
@@ -89,13 +92,15 @@ async function responder(d, numero, texto, nombrePerfil) {
     }
     // Entrega inmediata
     let contado, listaCuotas;
-    listaCuotas = esV2(p) ? Math.round(Number(p.publico_usd) * tc) : (Number(p.precio_lista) > 0 ? Number(p.precio_lista) : 0);
-    if (esV2(p)) contado = (p.oferta_activa && Number(p.oferta_valor) > 0) ? Number(p.oferta_valor) : Math.round(Number(p.publico_usd) * tc);
+    listaCuotas = esV2(p) ? precioLista(p, tc) : (Number(p.precio_lista) > 0 ? Number(p.precio_lista) : 0);
+    if (esV2(p)) contado = (p.oferta_activa && Number(p.oferta_valor) > 0) ? Number(p.oferta_valor) : precioLista(p, tc);
     else contado = Number(p.precio_lista) > 0 ? Number(p.precio_lista) : parseInt(String(p.precio_contado || '').replace(/[^0-9]/g, ''), 10) || 0;
     await d.addDoc(d.collection(d.db, 'bot_interesados'), { tipo: 'interes', numero, nombre: nombreCliente, producto: nombre, producto_id: id, mensaje_recibido: t, segmento: 'minorista', fecha: d.serverTimestamp(), atendido: false });
     d.enviarMensaje(numero,
       '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\n' +
-      'El *' + nombre + '* cuenta con *entrega inmediata* y tiene un solo precio:\n' +
+      (esV2(p) && p.entrega && p.entrega !== 'inmediata'
+        ? 'El *' + nombre + '* lo traemos a pedido y llega en ' + (PLAZOS[p.entrega] || PLAZOS['5a7']) + '. Tiene un solo precio:\n'
+        : 'El *' + nombre + '* cuenta con *entrega inmediata* y tiene un solo precio:\n') +
       (contado ? '💵 *' + ars(contado) + '* (contado, transferencia o efectivo)\n' : '') +
       ((listaCuotas || contado) ? 'En cuotas: ' + cuotas(listaCuotas || contado) + '\n' : '') +
       TARJETAS + '\n' + ZOCALO + '\n\n' +
