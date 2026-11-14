@@ -10,6 +10,7 @@
 // Bencho NO cierra la venta ni pasa alias: deriva al vendedor (NUMERO_CIERRE_VENTA).
 
 const COEF = 1.37; // Financiero/César 14/11/2026
+const VERSION_BENCHO = '14/11 15:25'; // para verificar en el log de Render que tomó la última versión
 const TARJETAS = '💳 Trabajamos con *Visa, Mastercard y Tuya* hasta *9 cuotas*, y *Naranja X* en *Plan Z y 6 cuotas*.';
 const CATALOGO = 'https://c-ventas.web.app/catalogo_visual.html';
 // Zócalo fijo del grupo (Contenido, 01/09/2026) + seguimiento online (César, 14/11/2026)
@@ -49,6 +50,7 @@ async function pedidosDe(d, numero) {
 
 // nombre = nombre de perfil de WhatsApp del cliente (lo manda Meta en el webhook); César lo puede corregir en la Agenda.
 async function responder(d, numero, texto, nombrePerfil) {
+  console.log('bencho ' + VERSION_BENCHO);
   const nombreCliente = String(nombrePerfil || '').trim();
   const t = String(texto || '').trim();
   // Acepta «1», «1️⃣», «1.» o «opción 1» (lo mismo con 2).
@@ -99,8 +101,10 @@ async function responder(d, numero, texto, nombrePerfil) {
     d.enviarMensaje(numero,
       '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\n' +
       (esV2(p) && p.entrega && p.entrega !== 'inmediata'
-        ? 'El *' + nombre + '* lo traemos a pedido y llega en ' + (PLAZOS[p.entrega] || PLAZOS['5a7']) + '. Tiene un solo precio:\n'
-        : 'El *' + nombre + '* cuenta con *entrega inmediata* y tiene un solo precio:\n') +
+        ? 'El *' + nombre + '* lo traemos a pedido y llega en ' + (PLAZOS[p.entrega] || PLAZOS['5a7']) + (contado ? '. Tiene un solo precio:\n' : '.\n')
+        : 'El *' + nombre + '* cuenta con *entrega inmediata*' + (contado ? ' y tiene un solo precio:\n' : '.\n')) +
+      // Si por algún motivo el artículo no tiene precio cargado, no se manda «un solo precio:» vacío.
+      (contado ? '' : 'El precio te lo pasa nuestro vendedor en un minuto 👇\n') +
       (contado ? '💵 *' + ars(contado) + '* (contado, transferencia o efectivo)\n' : '') +
       ((listaCuotas || contado) ? 'En cuotas: ' + cuotas(listaCuotas || contado) + '\n' : '') +
       TARJETAS + '\n' + ZOCALO + '\n\n' +
