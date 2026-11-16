@@ -64,29 +64,44 @@ async function registrarInteresado(numeroCliente, textoRecibido, nombreProducto,
   }
 }
 
+const CACHE_CATALOGO_MS = 5 * 60 * 1000;
+const CACHE_CATALOGOS = { catalogo_bot: { datos: null, ts: 0 }, catalogo_bot_mayorista: { datos: null, ts: 0 } };
+
 // Sub-paso 2 (Selección de producto): trae el catálogo activo desde Firestore,
 // cargado por César en catalogo_bot.html (APP/).
 async function obtenerCatalogoActivo() {
+  // Ahorro de lecturas (16/11/2026): el catálogo se guarda 5 minutos y se reusa en vez de leerlo con cada mensaje.
+  // Si Firestore falla (ej. sin cuota), se responde con la última copia leída.
+  const c = CACHE_CATALOGOS['catalogo_bot'];
+  if (c.datos && (Date.now() - c.ts) < CACHE_CATALOGO_MS) return c.datos;
   try {
     const q = query(collection(db, 'catalogo_bot'), where('activo', '==', true), orderBy('orden', 'asc'));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    c.datos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    c.ts = Date.now();
+    return c.datos;
   } catch (e) {
     console.error('Error leyendo catalogo_bot de Firestore:', e);
-    return [];
+    return c.datos || [];
   }
 }
 
 // Mismo patrón, pero para el catálogo MAYORISTA (colección separada, cargado por César en
 // catalogo_bot_mayorista.html — APP/). Nunca se mezcla con catalogo_bot.
 async function obtenerCatalogoMayoristaActivo() {
+  // Ahorro de lecturas (16/11/2026): el catálogo se guarda 5 minutos y se reusa en vez de leerlo con cada mensaje.
+  // Si Firestore falla (ej. sin cuota), se responde con la última copia leída.
+  const c = CACHE_CATALOGOS['catalogo_bot_mayorista'];
+  if (c.datos && (Date.now() - c.ts) < CACHE_CATALOGO_MS) return c.datos;
   try {
     const q = query(collection(db, 'catalogo_bot_mayorista'), where('activo', '==', true), orderBy('orden', 'asc'));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    c.datos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    c.ts = Date.now();
+    return c.datos;
   } catch (e) {
     console.error('Error leyendo catalogo_bot_mayorista de Firestore:', e);
-    return [];
+    return c.datos || [];
   }
 }
 
