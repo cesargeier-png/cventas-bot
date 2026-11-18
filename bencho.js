@@ -76,13 +76,17 @@ async function responder(d, numero, texto, nombrePerfil) {
       producto: e.modelo, producto_id: id, marca, precio_anticipada: e.anticipada_ars, precio_reembolso: e.publico_ars,
       plazo, mensaje_recibido: t, segmento: 'minorista', fecha: d.serverTimestamp(), atendido: false
     });
+    const pct = e.publico_ars ? Math.round(100 * ahorro / e.publico_ars) : 0;
     d.enviarMensaje(numero,
-      '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\n' +
-      'El *' + e.modelo + '* llega en ' + plazo + '. Tenés dos formas, las dos de contado:\n\n' +
+      (data.intro || '¡Bienvenido! 👋') + '\n\n' +
+      '📱 *' + e.modelo + '*\n' + (e.ficha ? e.ficha + '\n' : '') +
+      '🚚 Llega en ' + plazo + '\n\n' +
       (ahorro > 0
-        ? '1️⃣ *Compra anticipada: 🔥 ' + ars(e.anticipada_ars) + '*\nPagás ahora y ahorrás *' + ars(ahorro) + '*.\n\n2️⃣ *Pagás al recibirlo: ' + ars(e.publico_ars) + '*\n\n'
-        : '💵 *' + ars(e.publico_ars) + '* (transferencia o efectivo)\n\n') +
-      ZOCALO + (ahorro > 0 ? '\n\n\n*RESPONDÉ 1️⃣ o 2️⃣*' : '\n\nPara cerrarlo, escribile a nuestro vendedor acá 👇\n\n' + linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, quiero comprar el ' + e.modelo)));
+        ? '1️⃣ *Pagalo ya: ' + ars(e.anticipada_ars) + '* y ahorrás *' + pct + '%*\n\n' +
+          '2️⃣ *Pagalo al recibirlo: ' + ars(e.publico_ars) + '*\n\n'
+        : '💵 *' + ars(e.publico_ars) + '*\n\n') +
+      '💵 Valor en *efectivo o transferencia*. Artículo *sin financiación*.' +
+      (ahorro > 0 ? '\n\n\n*RESPONDÉ 1️⃣ o 2️⃣*' : '\n\nPara cerrarlo, escribile a nuestro vendedor acá 👇\n\n' + linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, quiero comprar el ' + e.modelo)));
     return true;
   }
 
