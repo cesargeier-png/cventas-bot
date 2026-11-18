@@ -87,7 +87,7 @@ async function responder(d, numero, texto, nombrePerfil) {
         : '💵 *' + ars(e.publico_ars) + '*\n\n') +
       '💵 Valor en *efectivo o transferencia*. Artículo *sin financiación*.\n\n' +
       ZOCALO.split('\n').slice(1).join('\n') + // envío, showroom, garantía y seguimiento (sin «Compra protegida»)
-      (ahorro > 0 ? '\n\n\n*RESPONDÉ 1️⃣ o 2️⃣*' : '\n\nPara cerrarlo, escribile a nuestro vendedor acá 👇\n\n' + linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, quiero comprar el ' + e.modelo)));
+      (ahorro > 0 ? '\n\n\nPara hacer tu pedido, *RESPONDÉ 1️⃣ o 2️⃣* según cómo quieras pagarlo.' : '\n\nPara cerrarlo, escribile a nuestro vendedor acá 👇\n\n' + linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, quiero comprar el ' + e.modelo)));
     return true;
   }
 
