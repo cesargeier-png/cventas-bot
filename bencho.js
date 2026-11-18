@@ -66,7 +66,7 @@ async function responder(d, numero, texto, nombrePerfil) {
     try { const sn = await d.getDoc(d.doc(d.db, 'marcas_publico', marca)); if (sn.exists()) data = JSON.parse(sn.data().json); } catch (e) { console.log('bencho marca: ' + e.message); }
     const e = data && (data.equipos || []).find(x => x.id === id);
     if (!e) {
-      d.enviarMensaje(numero, '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\nEse equipo ya no está en la página. Escribile a nuestro vendedor y te ayuda 👇\n\n' + linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, consulto por un equipo de la página ' + marca) + '\n');
+      d.enviarMensaje(numero, '¡Hola! 👋 Soy Bencho, el asistente de *C-Ventas*.\nEse equipo ya no está en la página. Escribile a nuestro vendedor y te ayuda 👇\n\n' + linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, consulto por un equipo de la página ' + marca) + '\n');
       return true;
     }
     const plazo = data.plazo || '5 a 7 días hábiles';
@@ -97,7 +97,7 @@ async function responder(d, numero, texto, nombrePerfil) {
     const id = ref[1];
     const snap = await d.getDoc(d.doc(d.db, 'catalogo_bot', id));
     if (!snap.exists()) {
-      d.enviarMensaje(numero, '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\nEse artículo ya no está en el catálogo. Mirá lo que tenemos hoy 👇\n\n' + CATALOGO + '\n');
+      d.enviarMensaje(numero, '¡Hola! 👋 Soy Bencho, el asistente de *C-Ventas*.\nEse artículo ya no está en el catálogo. Mirá lo que tenemos hoy 👇\n\n' + CATALOGO + '\n');
       return true;
     }
     const p = snap.data();
@@ -106,7 +106,7 @@ async function responder(d, numero, texto, nombrePerfil) {
     const sinStock = esV2(p) ? p.entrega === 'sin_stock' : (p.sinStock === true || p.disponibilidad === 'sin_stock');
     if (sinStock) {
       await d.addDoc(d.collection(d.db, 'bot_interesados'), { tipo: 'avisar', numero, nombre: nombreCliente, producto: nombre, producto_id: id, mensaje_recibido: t, segmento: 'minorista', avisar_cuando_vuelva: true, fecha: d.serverTimestamp(), atendido: false });
-      d.enviarMensaje(numero, '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\nEl *' + nombre + '* está sin stock en este momento.\n¡Anotado! 📝 Apenas vuelva te aviso por acá.');
+      d.enviarMensaje(numero, '¡Hola! 👋 Soy Bencho, el asistente de *C-Ventas*.\nEl *' + nombre + '* está sin stock en este momento.\n¡Anotado! 📝 Apenas vuelva te aviso por acá.');
       return true;
     }
     if (esV2(p) && p.entrega !== 'inmediata' && precioAntic(p, tc) < precioLista(p, tc)) {
@@ -119,7 +119,7 @@ async function responder(d, numero, texto, nombrePerfil) {
         fecha: d.serverTimestamp(), atendido: false
       });
       d.enviarMensaje(numero,
-        '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\n' +
+        '¡Hola! 👋 Soy Bencho, el asistente de *C-Ventas*.\n' +
         'El *' + nombre + '* lo traemos a pedido y llega en ' + plazo + '. Tenés dos formas:\n\n' +
         '1️⃣ *Compra anticipada: 🔥 ' + ars(antic) + '*, un precio increíble que no conseguís en ninguna otra tienda.\nPagás ahora y ahorrás *' + ars(reemb - antic) + '*.\nTambién en cuotas: ' + cuotas(antic) + '\n\n' +
         '2️⃣ *Pagás al recibirlo: ' + ars(reemb) + '*\nEn cuotas: ' + cuotas(reemb) + '\n\n' +
@@ -133,7 +133,7 @@ async function responder(d, numero, texto, nombrePerfil) {
     else contado = Number(p.precio_lista) > 0 ? Number(p.precio_lista) : parseInt(String(p.precio_contado || '').replace(/[^0-9]/g, ''), 10) || 0;
     await d.addDoc(d.collection(d.db, 'bot_interesados'), { tipo: 'interes', numero, nombre: nombreCliente, producto: nombre, producto_id: id, mensaje_recibido: t, segmento: 'minorista', fecha: d.serverTimestamp(), atendido: false });
     d.enviarMensaje(numero,
-      '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\n' +
+      '¡Hola! 👋 Soy Bencho, el asistente de *C-Ventas*.\n' +
       (esV2(p) && p.entrega && p.entrega !== 'inmediata'
         ? 'El *' + nombre + '* lo traemos a pedido y llega en ' + (PLAZOS[p.entrega] || PLAZOS['5a7']) + (contado ? '. Tiene un solo precio:\n' : '.\n')
         : 'El *' + nombre + '* cuenta con *entrega inmediata*' + (contado ? ' y tiene un solo precio:\n' : '.\n')) +
@@ -184,7 +184,7 @@ async function responder(d, numero, texto, nombrePerfil) {
 
   // 4) «Hola» suelto (botón Bencho del catálogo)
   if (/^(hola|buenas|buen d[ií]a|buenas tardes|buenas noches)[!. ]*$/i.test(t)) {
-    d.enviarMensaje(numero, '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\nTocá *Me interesa* en el artículo que te guste del catálogo y te sigo desde ahí 😉\n\n' + CATALOGO + '\n');
+    d.enviarMensaje(numero, '¡Hola! 👋 Soy Bencho, el asistente de *C-Ventas*.\nTocá *Me interesa* en el artículo que te guste del catálogo y te sigo desde ahí 😉\n\n' + CATALOGO + '\n');
     return true;
   }
   return false;
