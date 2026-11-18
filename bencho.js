@@ -57,6 +57,35 @@ async function responder(d, numero, texto, nombrePerfil) {
   let tl = t.toLowerCase().replace(/[\ufe0f\u20e3]/g, '').replace(/^(opci[oó]n|la)\s*/, '').replace(/[.!)\s]+$/, '');
   if (!t) return false;
 
+  // 1-bis) Viene de una página de marca (Oukitel, etc.): «(ref marca:oukitel:oukitel-c17)».
+  //         Precio al público de contado, sin financiación, y compra anticipada con su ahorro.
+  const refM = t.match(/\(ref marca:([a-z0-9_\-]+):([a-z0-9_\-]+)\)/i);
+  if (refM) {
+    const marca = refM[1], id = refM[2];
+    let data = null;
+    try { const sn = await d.getDoc(d.doc(d.db, 'marcas_publico', marca)); if (sn.exists()) data = JSON.parse(sn.data().json); } catch (e) { console.log('bencho marca: ' + e.message); }
+    const e = data && (data.equipos || []).find(x => x.id === id);
+    if (!e) {
+      d.enviarMensaje(numero, '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\nEse equipo ya no está en la página. Escribile a nuestro vendedor y te ayuda 👇\n\n' + linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, consulto por un equipo de la página ' + marca) + '\n');
+      return true;
+    }
+    const plazo = data.plazo || '5 a 7 días hábiles';
+    const ahorro = e.publico_ars - e.anticipada_ars;
+    await d.addDoc(d.collection(d.db, 'bot_interesados'), {
+      tipo: 'pedido', estado: 'esperando_forma', pago: 'pendiente', numero, nombre: nombreCliente,
+      producto: e.modelo, producto_id: id, marca, precio_anticipada: e.anticipada_ars, precio_reembolso: e.publico_ars,
+      plazo, mensaje_recibido: t, segmento: 'minorista', fecha: d.serverTimestamp(), atendido: false
+    });
+    d.enviarMensaje(numero,
+      '¡Hola! 👋 Soy Bencho, el asistente de C-Ventas.\n' +
+      'El *' + e.modelo + '* llega en ' + plazo + '. Tenés dos formas, las dos de contado:\n\n' +
+      (ahorro > 0
+        ? '1️⃣ *Compra anticipada: 🔥 ' + ars(e.anticipada_ars) + '*\nPagás ahora y ahorrás *' + ars(ahorro) + '*.\n\n2️⃣ *Pagás al recibirlo: ' + ars(e.publico_ars) + '*\n\n'
+        : '💵 *' + ars(e.publico_ars) + '* (transferencia o efectivo)\n\n') +
+      ZOCALO + (ahorro > 0 ? '\n\n\n*RESPONDÉ 1️⃣ o 2️⃣*' : '\n\nPara cerrarlo, escribile a nuestro vendedor acá 👇\n\n' + linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, quiero comprar el ' + e.modelo)));
+    return true;
+  }
+
   // 1) Viene del botón «Me interesa» del catálogo
   const ref = t.match(/\(ref ([a-z0-9_\-]+)\)/i);
   if (ref) {
