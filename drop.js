@@ -40,7 +40,7 @@ function armarEstado(ofertas) {
     const c = cierreTxt(o);
     return '📱 ' + o.equipo + '\n' + plata(o, o.precio_usd) + ' cada una · Quedan ' + quedan + ' de ' + o.cupo + (c ? '\nSe cierra el ' + c + ' hs.' : '');
   });
-  return '💧 Drop de C-Ventas\n\n' + bloques.join('\n\n')
+  return '💧 Drop de *C-Ventas*\n\n' + bloques.join('\n\n')
     + '\n\nPara sumarte o ver tu reserva:\n\n👇 ' + DROP_LINK + ' 👇\n\nSi ya reservaste, escribime tu código (se ve así: D-AB12) y te confirmo todo.';
 }
 function cierreMs(o) { try { return o.cierre.toMillis(); } catch (e) { return 9e15; } }
