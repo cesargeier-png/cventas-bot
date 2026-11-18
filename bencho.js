@@ -79,12 +79,12 @@ async function responder(d, numero, texto, nombrePerfil) {
     const pct = e.publico_ars ? Math.round(100 * ahorro / e.publico_ars) : 0;
     d.enviarMensaje(numero,
       (data.intro || '¡Bienvenido! 👋') + '\n\n' +
-      '📱 *' + e.modelo + '*\n' + (e.ficha ? e.ficha + '\n' : '') +
-      '🚚 Llega en ' + plazo + '\n\n' +
+      '📱 *' + e.modelo + '*\n' + (e.ficha ? e.ficha + '\n' : '') + '\n' +
       (ahorro > 0
-        ? '1️⃣ *Pagalo ya: ' + ars(e.anticipada_ars) + '* y ahorrás *' + pct + '%*\n\n' +
-          '2️⃣ *Pagalo al recibirlo: ' + ars(e.publico_ars) + '*\n\n'
+        ? '1️⃣ *Pagalo ahora a precio diferenciado: ' + ars(e.anticipada_ars) + '* (ahorrás ' + pct + '%)\n\n' +
+          '2️⃣ *Abonalo al recibirlo: ' + ars(e.publico_ars) + '*\n\n'
         : '💵 *' + ars(e.publico_ars) + '*\n\n') +
+      '⏱️ Demora entre ' + plazo.replace(/^(\d+) a (\d+)/, '$1 y $2') + ' desde tu pedido.\n\n' +
       '💵 Valor en *efectivo o transferencia*. Artículo *sin financiación*.\n\n' +
       ZOCALO.split('\n').slice(1).join('\n') + // envío, showroom, garantía y seguimiento (sin «Compra protegida»)
       (ahorro > 0 ? '\n\n\nPara hacer tu pedido, *RESPONDÉ 1️⃣ o 2️⃣* según cómo quieras pagarlo.' : '\n\nPara cerrarlo, escribile a nuestro vendedor acá 👇\n\n' + linkVendedor(d.NUMERO_CIERRE_VENTA, 'Hola, quiero comprar el ' + e.modelo)));
