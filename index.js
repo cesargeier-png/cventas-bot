@@ -45,6 +45,17 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 
+// 18/11/2026 (seguridad): Bencho entra a Firebase con el usuario del sistema (variables SISTEMA_EMAIL y
+// SISTEMA_PASS en Render). Sin variables sigue como antes (sirve mientras las reglas estén abiertas).
+const { getAuth, signInWithEmailAndPassword } = require('firebase/auth');
+if (process.env.SISTEMA_EMAIL && process.env.SISTEMA_PASS) {
+  signInWithEmailAndPassword(getAuth(firebaseApp), process.env.SISTEMA_EMAIL, process.env.SISTEMA_PASS)
+    .then(() => console.log('auth sistema OK (18/11)'))
+    .catch(e => console.log('auth sistema ERROR: ' + e.code));
+} else {
+  console.log('auth sistema: faltan SISTEMA_EMAIL / SISTEMA_PASS en Render');
+}
+
 // Sub-paso 1 (Registro de interesados): guarda cada consulta entrante en la colección "bot_interesados".
 // "segmento" (minorista/mayorista) queda guardado para poder distinguir el origen en ver_interesados.html.
 // No bloquea la respuesta al cliente si Firestore falla (falla en silencio, se loguea y sigue).
